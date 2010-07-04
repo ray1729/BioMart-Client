@@ -49,12 +49,13 @@
   [s]
   (try
     (xml/parse (org.xml.sax.InputSource. (java.io.StringReader. s)))
-    (catch org.xml.sax.SAXParseException _ (throwf (str "BioMart error: " s)))))
+    (catch org.xml.sax.SAXParseException _ (throwf "BioMart error: %s" (str s)))))
 
 (defn- parse-tsv
   [lines]
-  (when-not (re-find #"\t" (first lines)) (throwf (str "BioMart errer: " lines)))
-  (map #(split #"\t" %) (filter #(re-find #"\S" %) lines)))
+  (let [lines (filter #(re-find #"\S" %) lines)]
+    (when-not (re-find #"\t" (first lines)) (throwf "BioMart error (failed to parse TSV): %s" (first lines)))
+    (map #(split #"\t" %) lines)))
 
 (defn- seq-to-hash
   [ks]
@@ -72,11 +73,11 @@
 	     (filter-spec [f] (vector :Filter { :name (as-str (key f)) :value (coll-to-csv (val f))}))]
        (let [filter (get args :filter {})
 	     attrs  (get args :attrs (:default-attrs ds))
-	     opts   (assoc (get args :opts {}) :virtualSchemaName (:serverVirtualSchema (:mart (:dataset ds))))]
+	     opts   (assoc (get args :opts {}) :virtualSchemaName (:virtualschema ds))]
 	 (with-out-str (prxml [:decl!]
 			      [:doctype! "Query"]
 			      [:Query (into *default-query-opts* opts)
-			       [:Dataset {:name (:name ds) :interface "default"}
+			       [:Dataset {:name (:dataset ds) :interface "default"}
 				(map attr-spec attrs)
 				(map filter-spec filter)]]))))))
 
@@ -88,7 +89,7 @@
   (let [body (apply str (:body-seq response))]
     (if (re-find #"ERROR" body)
       (let [m (re-find #"(?:Filter|Attribute|Dataset) .+ NOT FOUND" body)]
-	(if m (throwf "BioMart error: %s" m) (throwf "Biomart error")))
+	(if m (throwf "BioMart error: %s" m) (throwf "Biomart error: %s" body)))
       response)))
 
 (defn fetch-meta-xml
@@ -99,8 +100,10 @@
 (defn fetch-datasets
   [martservice mart]
   (map #(assoc % :mart mart)
-       (map (seq-to-hash *dataset-fields*) (fetch-tsv martservice {:type "datasets" :mart (:name mart)}))))
-
+       (map (seq-to-hash *dataset-fields*) (fetch-tsv martservice
+						      {:type "datasets"
+						       :mart (:name mart)
+						       :virtualschema (:serverVirtualSchema mart)}))))
 (defn fetch-query-results
   [ds query-spec]
   (let [query-xml (build-query-xml ds query-spec)

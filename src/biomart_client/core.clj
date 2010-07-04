@@ -23,11 +23,12 @@
 
 (defn list-datasets [ms] (doseq [d (keys (:datasets ms))] (println d)))
 
-(defstruct dataset-struct :martservice :dataset :name :config :attrs :default-attrs)
+(defstruct dataset-struct :martservice :virtualschema :dataset :config :attrs :default-attrs)
 
 (defn dataset
-  [ms dsname]
-  (let [dsconfig      (fetch-meta-xml (:url ms) {:type "configuration" :dataset dsname})
+  [ms dsname & [virtualschema]]
+  (let [virtualschema (or virtualschema "default")
+	dsconfig      (fetch-meta-xml (:url ms) {:type "configuration" :dataset dsname :virtualschema virtualschema})
 	attrs         (zf/xml-> dsconfig
 				(zf/tag=  :AttributePage)
 				(zf/attr= :internalName "attributes")
@@ -43,7 +44,7 @@
 				(zf/tag=  :AttributeDescription)
 				(zf/attr= :default "true")
  				(zf/attr  :internalName))]
-    (struct dataset-struct ms (get (:datasets ms) dsname) dsname dsconfig attrs default-attrs)))
+    (struct dataset-struct ms virtualschema dsname dsconfig attrs default-attrs)))
 
 (defn query
   [ds & args]

@@ -1,10 +1,45 @@
-# bio.martservice.client
+# biomart-client
 
-FIXME: write description
+Clojure library to query unRESTful BioMart web services.
 
 ## Usage
 
-FIXME: write
+user> (use '[biomart-client.core])
+nil
+user> (def ms (martservice "http://www.i-dcc.org/biomart"))
+#'user/ms
+user> (list-marts ms)
+vega
+europhenomeannotations
+Eurexpress Biomart
+ikmc
+htgt
+emma_biomart
+ensembl
+biomart
+nil
+user> (list-datasets ms)
+idcc_targ_rep
+dcc
+htgt_targ
+mmusculus_gene_vega
+kermits
+ontology_terms
+mmusculus_gene_ensembl
+europhenome
+markers
+template
+strains
+nil
+user> (def ds (dataset ms "dcc"))
+#'user/ds
+user> (:attrs ds)
+("marker_symbol" "marker_name" "mgi_accession_id" "secondary_mgi_accession_id" "synonym" "ensembl_gene_id" "vega_gene_id" "ncbi_gene_id" "ccds_id" "omim_id" "omim_description" "chromosome" "strand" "start" "end" "ikmc_project" "ikmc_project_id" "status" "mouse_available" "escell_available" "vector_available" "mgi_gene_traps" "tigm_gene_traps" "igtc" "imsr" "targeted_mutations" "other_mutations")
+user> (query ds :filter {:marker_symbol "art4"})
+(("Art4" "MGI:1202710" "KOMP-CSD" "39216" "ES Cells - Targeting Confirmed" "0" "1" "1") ("Art4" "MGI:1202710" "KOMP-CSD" "39215" "Vector Complete" "0" "0" "1") ("Art4" "MGI:1202710" "KOMP-Regeneron" "VG10572" "ES cell colonies screened / QC no positives" "0" "0" "1"))
+
+user> (query ds :filter {:marker_symbol '(art4 abcd1 cbx1)} :opts {:count 1})
+BANG!
 
 ## Installation
 
@@ -12,4 +47,16 @@ FIXME: write
 
 ## License
 
-FIXME: write
+Copyright (C) 2010, Ray Miller <ray@1729.org.uk>.
+
+THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS ECLIPSE
+PUBLIC LICENSE, <http://www.eclipse.org/org/documents/epl-v10.php>.
+
+ANY USE, REPRODUCTION OR DISTRIBUTION OF THE PROGRAM CONSTITUTES
+RECIPIENT’S ACCEPTANCE OF THIS AGREEMENT.
+
+## TODO
+
+Cope with dataset name collisions (unique to mart? virtual schema? user?)
+
+Fix parse error when retrieving count (make parsing of return optional?)
