@@ -1,82 +1,52 @@
 (ns biomart-client.core
-  (:use [biomart-client.utils :only (martservice-url fetch-meta-xml fetch-datasets)])
+  (:use [biomart-client.utils :only (martservice-url fetch-meta-xml fetch-datasets fetch-query-results)])
   (:require [clojure-http.resourcefully :as http]
 	    [clojure.zip :as zip]
 	    [clojure.contrib.zip-filter.xml :as zf]))
 
-(defstruct martservice-struct :url :registry)
+(defstruct martservice-struct :url :registry :marts :datasets)
 
 (defn martservice
   [server]
-  (let [url (martservice-url server)]
-    (struct martservice-struct url (fetch-meta-xml url {:type "registry"}))))
+  (let [url      (martservice-url server)
+	registry (fetch-meta-xml url {:type "registry"})
+	marts    (zf/xml-> registry
+			   (zf/tag= :MartURLLocation)
+			   (zf/attr= :visible "1")
+			   #(:attrs (zip/node %)))
+	datasets (apply concat (map #(fetch-datasets url %) marts))]    
+    (struct martservice-struct url registry
+	    (apply hash-map (interleave (map :name marts) marts))
+	    (apply hash-map (interleave (map :dataset datasets) datasets)))))
 
-(defn marts
-  [ms]
-  (zf/xml-> (:registry ms)
-	    (zf/tag= :MartURLLocation) (zf/attr= :visible "1") #(:attrs (zip/node %))))
+(defn list-marts [ms] (doseq [m (keys (:marts ms))] (println m)))
 
-(defn datasets
-  ([ms mart]
-     (fetch-datasets (:url ms) mart))
-  ([ms]
-     (apply concat (map #(fetch-datasets (:url ms) (:name %)) (marts ms)))))
+(defn list-datasets [ms] (doseq [d (keys (:datasets ms))] (println d)))
 
+(defstruct dataset-struct :martservice :dataset :name :config :attrs :default-attrs)
 
-;; (defn visible-datasets
-;;   [registry]
-;;   (zf/xml-> registry (zf/tag= :MartURLLocation) (zf/attr= :visible "1") (zf/attr :name)))
+(defn dataset
+  [ms dsname]
+  (let [dsconfig      (fetch-meta-xml (:url ms) {:type "configuration" :dataset dsname})
+	attrs         (zf/xml-> dsconfig
+				(zf/tag=  :AttributePage)
+				(zf/attr= :internalName "attributes")
+				(zf/tag=  :AttributeGroup)
+				(zf/tag=  :AttributeCollection)
+				(zf/tag=  :AttributeDescription)
+				(zf/attr  :internalName))
+	default-attrs (zf/xml-> dsconfig
+				(zf/tag=  :AttributePage)
+				(zf/attr= :internalName "attributes")
+				(zf/tag=  :AttributeGroup)
+				(zf/tag=  :AttributeCollection)
+				(zf/tag=  :AttributeDescription)
+				(zf/attr= :default "true")
+ 				(zf/attr  :internalName))]
+    (struct dataset-struct ms (get (:datasets ms) dsname) dsname dsconfig attrs default-attrs)))
 
-;; (defn dataset
-;;   [martservice dataset-name]
-;;   (letfn [(attributes
-;; 	   [config]
-;; 	   (zf/xml-> config
-;; 		     (zf/tag=  :AttributePage)
-;; 		     (zf/attr= :internalName "attributes")
-;; 		     (zf/tag=  :AttributeGroup)
-;; 		     (zf/tag=  :AttributeCollection)
-;; 		     (zf/tag=  :AttributeDescription)
-;; 		     (zf/attr  :internalName)))
-;; 	  (default-attributes
-;; 	    [config]
-;; 	    (zf/xml-> config
-;; 		     (zf/tag=  :AttributePage)
-;; 		     (zf/attr= :internalName "attributes")
-;; 		     (zf/tag=  :AttributeGroup)
-;; 		     (zf/tag=  :AttributeCollection)
-;; 		     (zf/tag=  :AttributeDescription)
-;; 		     (zf/attr= :default "true")
-;; 		     (zf/attr  :internalName)))
-;; 	  (software-version
-;; 	   [config]
-;; 	   (zf/xml-> config (zf/attr :softwareVersion)))]
-;;     (let [config (fetch-metadata martservice {:type "configuration" :dataset dataset-name})]
-;;       {:martservice        martservice
-;;        :dataset            dataset-name
-;;        :softwareVersion    (software-version config)
-;;        :attributes         (attributes config)
-;;        :default-attributes (default-attributes config)}
-;;       )))
-
-;; (defn registry
-;;   [martservice]
-;;   (let [registry (fetch-metadata martservice {:type "registry"})
-;; 	datasets (zf/xml-> registry (zf/tag= :MartURLLocation) (zf/attr= :visible "1") #(:attrs (zip/node %)))]
-;;     (apply hash-map (interleave (map :name datasets) datasets))))
-	
-
-
-;; get *all* attrs for a node
-;; (zf/xml-> registry (zf/tag= :MartURLLocation) (zf/attr= :visible "1") #(:attrs (zip/node %)))
-
-(comment
-
-  (def ms (martservice "http://www.biomart.org/biomart"))
-
-  (list-marts ms)
-
-  (list-datasets ms)
-
-  (query ms ds-name query-spec)
-  )
+(defn query
+  [ds & args]
+  (let [query-spec (apply hash-map args)
+	res (fetch-query-results ds query-spec)]
+    res))
