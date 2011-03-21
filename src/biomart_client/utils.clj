@@ -55,7 +55,6 @@
   [lines]
   (let [lines (filter #(re-find #"\S" %) lines)]
     (when-not (re-find #"\t" (first lines))
-      (println (first lines))
       (throwf "BioMart error (failed to parse TSV): %s" (first lines)))
     (map #(split #"\t" %) lines)))
 
