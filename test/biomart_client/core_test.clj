@@ -3,7 +3,7 @@
   (:use [clojure.test]))
 
 (deftest ensembl-test
-  (let [ens-url "http://useast.ensembl.org/biomart"]
+  (let [ens-url "http://www.ensembl.org/biomart"]
     (testing "Conecting to Ensembl and retrieving marts"
       (let [ms (martservice ens-url)]
         (is (not (nil? ((:marts ms) "ENSEMBL_MART_ENSEMBL"))))
