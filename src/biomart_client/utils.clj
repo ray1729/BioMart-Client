@@ -54,7 +54,8 @@
 (defn- parse-tsv
   [lines]
   (let [lines (filter #(re-find #"\S" %) lines)]
-    (when-not (re-find #"\t" (first lines)) (throwf "BioMart error (failed to parse TSV): %s" (first lines)))
+    (when-not (re-find #"\t" (first lines))
+      (throwf "BioMart error (failed to parse TSV): %s" (first lines)))
     (map #(split #"\t" %) lines)))
 
 (defn- seq-to-hash
@@ -64,7 +65,8 @@
 (defn- fetch-tsv
   [martservice params]
   (let [res-body (:body-seq (http/get (martservice-url martservice params)))]
-    (parse-tsv res-body)))
+    (if-not (.startsWith (first res-body) "Problem retrieving")
+     (parse-tsv res-body))))
 
 (defn- build-query-xml
   ([ds args]
@@ -80,7 +82,6 @@
                                [:Dataset {:name (:dataset ds) :interface "default"}
                                 (map attr-spec attrs)
                                 (map filter-spec filter)]]))))))
-
 
 (defn- wrap-biomart-errors
   "Examine the response body and throw an exception if any BioMart errors
