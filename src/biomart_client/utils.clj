@@ -2,7 +2,7 @@
   (:use [clojure.contrib.string :only (as-str split)]
         [clojure.contrib.except :only (throwf)]
         [clojure.contrib.prxml])
-  (:require [clojure-http.resourcefully :as http]
+  (:require [clj-http.client :as http]
             [clojure.xml :as xml]
             [clojure.zip :as zip])
   (:import (java.net URLEncoder)))
@@ -19,7 +19,7 @@
                            :header               "0"
                            :uniqueRows           "1"
                            :count                "0"
-                           :datasetConfigVersion "0.6" })
+                           :datasetConfigVersion "0.6"})
 
 (defn- query-str
   "Take a map of query parameters and return a string of the form
@@ -64,7 +64,9 @@
 
 (defn- fetch-tsv
   [martservice params]
-  (let [res-body (:body-seq (http/get (martservice-url martservice params)))]
+  (let [res-body (->> (http/get (martservice-url martservice params))
+                      (:body)
+                      (split #"\n"))]
     (if-not (.startsWith (first res-body) "Problem retrieving")
      (parse-tsv res-body))))
 
@@ -87,7 +89,7 @@
   "Examine the response body and throw an exception if any BioMart errors
    are identified"
   [response]
-  (let [body (apply str (:body-seq response))]
+  (let [body (apply str (:body response))]
     (if (re-find #"ERROR" body)
       (let [m (re-find #"(?:Filter|Attribute|Dataset) .+ NOT FOUND" body)]
         (if m (throwf "BioMart error: %s" m) (throwf "Biomart error: %s" body)))
@@ -95,7 +97,7 @@
 
 (defn fetch-meta-xml
   [martservice params]
-  (let [res-body (apply str (:body-seq (http/get (martservice-url martservice params))))]
+  (let [res-body (apply str (:body (http/get (martservice-url martservice params))))]
     (zip/xml-zip (parse-xml res-body))))
 
 (defn fetch-datasets
@@ -108,5 +110,9 @@
 (defn fetch-query-results
   [ds query-spec]
   (let [query-xml (build-query-xml ds query-spec)
-        res-body  (:body-seq (wrap-biomart-errors (http/put (:url (:martservice ds)) {} (str "query=" query-xml))))]
+        res-body (->> (http/get (str (:url (:martservice ds)) "?" (query-str {:query query-xml})))
+                      wrap-biomart-errors
+                      (:body)
+                      (split #"\n")
+                      )]
     (parse-tsv res-body)))

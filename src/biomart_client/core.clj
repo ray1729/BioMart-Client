@@ -1,8 +1,7 @@
 (ns biomart-client.core
   (:use [biomart-client.utils :only (martservice-url fetch-meta-xml
                                      fetch-datasets fetch-query-results)])
-  (:require [clojure-http.resourcefully :as http]
-            [clojure.zip :as zip]
+  (:require [clojure.zip :as zip]
             [clojure.contrib.zip-filter.xml :as zf]))
 
 (defstruct martservice-struct :url :registry :marts :datasets)
