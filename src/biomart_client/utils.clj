@@ -35,9 +35,17 @@
   [s]
   (if (re-find #"/martservice$" s) s (str s "/martservice")))
 
+(defn- check-redirects
+  "Check for redirects, mainly on Ensembl, and reset the base URL"
+  [url]
+  (let [redir-loc (-> (http/post url) :headers (get "location"))]
+    (if (nil? redir-loc)
+      url
+      (first (split #"\?" redir-loc)))))
+
 (defn martservice-url
   ([server]
-     (ensure-martservice server))
+     (-> server ensure-martservice check-redirects))
   ([server query]
      (str (ensure-martservice server) "?" (query-str query))))
 
@@ -110,9 +118,8 @@
 (defn fetch-query-results
   [ds query-spec]
   (let [query-xml (build-query-xml ds query-spec)
-        res-body (->> (http/get (str (:url (:martservice ds)) "?" (query-str {:query query-xml})))
+        res-body (->> (http/post (:url (:martservice ds)) {:body (str "query=" query-xml)})
                       wrap-biomart-errors
                       (:body)
-                      (split #"\n")
-                      )]
+                      (split #"\n"))]
     (parse-tsv res-body)))
