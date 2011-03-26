@@ -1,5 +1,5 @@
 (ns biomart-client.query  
-  (:use [biomart-client.utils :only (parse-tsv)]
+  (:use [biomart-client.utils :only (parse-tsv parse-count)]
         [clojure.contrib.string :only (as-str join split blank? lower-case replace-re trim)]
         [clojure.contrib.except :only (throwf)]
         [clojure.contrib.prxml  :only (prxml)])
@@ -53,6 +53,9 @@
   [martservice-url opts & datasets]
   (when-not (or (= 1 (count datasets)) (= 2 (count datasets)))
     (throwf "query requires 1 or 2 datasets"))
-  (let [query-xml (build-query-xml (merge *default-query-opts* opts) datasets)
+  (let [opts      (merge *default-query-opts* opts)
+        query-xml (build-query-xml opts datasets)
         res-body  (fetch-query-results martservice-url query-xml)]
-    (parse-query-results res-body)))
+    (if (not= "0" (opts :count))
+      (parse-count res-body)
+      (parse-query-results res-body))))

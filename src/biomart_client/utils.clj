@@ -56,3 +56,12 @@
     (throwf "Biomart error: %s" body))
   (let [rows (filter (comp not blank?) (split #"\n" body))]
     (map #(split #"\t" %) rows)))
+
+(defn parse-count
+  "Parse a string containing count result returned by
+  martservice. This should be one or more digits followed by a
+  newline. Throw an error if body is not in expected format"
+  [body]
+  (if-let [r (re-seq #"^\d+$" body)]
+    (Integer/parseInt (first r))
+    (throwf "Biomart error: cannot parse count '%s'" body)))
