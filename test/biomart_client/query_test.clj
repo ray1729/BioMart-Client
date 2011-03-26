@@ -7,8 +7,9 @@
   (testing "Querying Ensembl martservice"
     (let [ms (martservice-url "http://www.ensembl.org/biomart")]
       (is ((comp not nil?) (re-find #"/martservice$" ms)))
-      (let [rs (query ms {}  (dataset "hsapiens_gene_ensembl" {:filter {:chromosome_name "6" :hgnc_symbol "HLA-A"}
-                                                               :attrs [:ensembl_gene_id :hgnc_symbol]}))
+      (let [rs (query ms {} (dataset "hsapiens_gene_ensembl"
+                                     :filter {:chromosome_name "6" :hgnc_symbol "HLA-A"}
+                                     :attrs [:ensembl_gene_id :hgnc_symbol]))
             r (first rs)]
         (is (map? r))
         (is (:ensembl_gene_id r) "ENSG00000206503")
@@ -18,8 +19,9 @@
   (testing "Querying IDCC martservice"
     (let [ms (martservice-url  "http://www.i-dcc.org/biomart")]
       (is ((comp not nil?) (re-find #"/martservice$" ms)))
-      (let [rs (query ms {} (dataset "dcc" {:filter {:marker_symbol "Art4"}
-                                            :attrs [:marker_symbol :mgi_accession_id]}))
+      (let [rs (query ms {} (dataset "dcc"
+                                     :filter {:marker_symbol "Art4"}
+                                     :attrs [:marker_symbol :mgi_accession_id]))
             r  (first rs)]
         (is (map? r))
         (is (:marker_symbol r) "Art4")
