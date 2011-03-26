@@ -16,8 +16,8 @@
                            #(:attrs (zip/node %)))
         datasets (apply concat (map #(fetch-datasets url %) marts))]    
     (struct martservice-struct url registry
-            (apply hash-map (interleave (map :name marts) marts))
-            (apply hash-map (interleave (map :dataset datasets) datasets)))))
+            (zipmap (map :name marts) marts)
+            (zipmap (map :dataset datasets) datasets))))
 
 (defn list-marts [ms] (doseq [m (keys (:marts ms))] (println m)))
 
