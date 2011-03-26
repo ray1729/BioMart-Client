@@ -4,42 +4,53 @@ Clojure library to query unRESTful BioMart web services.
 
 ## Usage
 
-user> (use '[biomart-client.core])
-nil
-user> (def ms (martservice "http://www.i-dcc.org/biomart"))
-#'user/ms
-user> (list-marts ms)
-vega
-europhenomeannotations
-Eurexpress Biomart
-ikmc
-htgt
-emma_biomart
-ensembl
-biomart
-nil
-user> (list-datasets ms)
-idcc_targ_rep
-dcc
-htgt_targ
-mmusculus_gene_vega
-kermits
-ontology_terms
-mmusculus_gene_ensembl
-europhenome
-markers
-template
-strains
-nil
-user> (def ds (dataset ms "dcc"))
-#'user/ds
-user> (:attrs ds)
-("marker_symbol" "marker_name" "mgi_accession_id" "secondary_mgi_accession_id" "synonym" "ensembl_gene_id" "vega_gene_id" "ncbi_gene_id" "ccds_id" "omim_id" "omim_description" "chromosome" "strand" "start" "end" "ikmc_project" "ikmc_project_id" "status" "mouse_available" "escell_available" "vector_available" "mgi_gene_traps" "tigm_gene_traps" "igtc" "imsr" "targeted_mutations" "other_mutations")
-user> (query ds :filter {:marker_symbol "art4"})
-(("Art4" "MGI:1202710" "KOMP-CSD" "39216" "ES Cells - Targeting Confirmed" "0" "1" "1") ("Art4" "MGI:1202710" "KOMP-CSD" "39215" "Vector Complete" "0" "0" "1") ("Art4" "MGI:1202710" "KOMP-Regeneron" "VG10572" "ES cell colonies screened / QC no positives" "0" "0" "1"))
+(use '[biomart-client.utils :only (martservice-url)]
+     '[biomart-client.query])
+;=> nil
 
-user> (query ds :filter {:marker_symbol '(art4 abcd1 cbx1)} :opts {:count 1})
-BANG!
+(def ms (martservice-url "http://www.i-dcc.org/biomart"))
+;=> #'user/ms
+
+ms
+;=> "http://www.i-dcc.org/biomart/martservice"
+
+(query ms {} (dataset "dcc" 
+                      :filter {:marker_symbol ["Art4" "Cbx1"]}
+                      :attrs [:marker_symbol :mgi_accession_id]))
+;=> ({:mgi_accession_id "MGI:1202710", :marker_symbol "Art4"} {:mgi_accession_id "MGI:105369", :marker_symbol "Cbx1"})
+
+(query ms {:count 1} (dataset "dcc" :filter {:marker_symbol '(art4 abcd1 cbx1)} :attrs [:mgi_accession_id]))
+;=> 3
+
+(use '[biomart-client.metadata])
+;=> nil
+
+(def r (registry ms))
+;=> #'user/r
+
+(map :name (marts r))
+;=> ("ikmc" "biomart" "htgt" "ikmc_unitrap" "emma_biomart" "Eurexpress Biomart" "europhenomeannotations" "ENSEMBL_MART_ENSEMBL" "ENSEMBL_MART_VEGA")
+
+(datasets ms "ikmc")
+;=> (("TableSet" "kermits" "IKMC Mouse Production" "1" "" "200" "50000" "default" "2011-03-24 16:09:13") ("TableSet" "omim" "OMIM (with MGI Mouse Orthologue Mappings)" "1" "" "200" "50000" "default" "2011-03-24 16:09:14") ("TableSet" "idcc_targ_rep" "IKMC Targeted Products" "1" "" "200" "50000" "default" "2011-03-24 16:09:13") ("TableSet" "dcc" "IKMC Projects / Alleles" "1" "" "200" "50000" "default" "2011-03-24 16:09:12"))
+
+(map #(nth % 1) (datasets ms "ikmc"))
+;=> ("kermits" "omim" "idcc_targ_rep" "dcc")
+
+(def c (configuration ms "dcc"))
+;=> #'user/c
+
+(default-attributes c)
+;=> ("marker_symbol" "mgi_accession_id" "ikmc_project" "ikmc_project_id" "status" "mouse_available" "escell_available" "vector_available")
+
+(map first (attributes ms "dcc"))
+;=> ("marker_symbol" "marker_name" "mgi_accession_id" "secondary_mgi_accession_id" "synonym" "ensembl_gene_id" "vega_gene_id" "ncbi_gene_id" "ccds_id" "omim_id" "omim_description" "chromosome" "strand" "start" "end" "ikmc_project" "ikmc_project_id" "status" "mouse_available" "escell_available" "vector_available" "mgi_gene_traps" "tigm_gene_traps" "igtc" "imsr" "targeted_mutations" "other_mutations")
+
+(def f (filters ms "dcc"))
+;=> #'user/f
+
+(map first f)
+;=> ("marker_symbol" "mgi_accession_id" "secondary_mgi_accession_id" "ensembl_gene_id" "vega_gene_id" "ncbi_gene_id" "ccds_id" "omim_id" "chromosome" "start" "end" "strand" "project" "ikmc_project_id" "mouse_available" "escell_available" "vector_available" "status" "regeneron_status")
 
 ## Installation
 
@@ -57,6 +68,6 @@ RECIPIENT’S ACCEPTANCE OF THIS AGREEMENT.
 
 ## TODO
 
-Cope with dataset name collisions (unique to mart? virtual schema? user?)
+Write more tests
 
-Fix parse error when retrieving count (make parsing of return optional?)
+
