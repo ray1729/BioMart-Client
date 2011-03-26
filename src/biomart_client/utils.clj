@@ -1,25 +1,12 @@
 (ns biomart-client.utils
-  (:use [clojure.contrib.string :only (as-str split)]
-        [clojure.contrib.except :only (throwf)]
-        [clojure.contrib.prxml])
+  (:use [clojure.contrib.string :only (as-str split blank?)]
+        [clojure.contrib.except :only (throwf)])
   (:require [clj-http.client :as http]
-            [clojure.xml :as xml]
-            [clojure.zip :as zip])
+            [clojure.xml :as xml])
   (:import (java.net URLEncoder)))
-
-;; Names of fields returned by 'datasets' query
-(def *dataset-fields* [:type :dataset :displayName :visible :version
-                       :initialBatchSize :maxBatchSize :interfaces :modified])
 
 ;; Character encoding used by URLEncoder
 (def *enc* "UTF-8")
-
-;; Default options used by build-query-xml
-(def *default-query-opts* {:formatter           "TSV"
-                           :header               "0"
-                           :uniqueRows           "1"
-                           :count                "0"
-                           :datasetConfigVersion "0.6"})
 
 (defn- query-str
   "Take a map of query parameters and return a string of the form
@@ -28,7 +15,7 @@
   [params]
   (letfn [(encode [s] (URLEncoder/encode (as-str s) *enc*))
           (encode-key-val [m] (str (encode (key m)) "=" (encode (val m))))]
-    (apply str (interpose "&" (map encode-key-val params)))))
+    (apply str (interpose "&" (map encode-key-val (remove (comp nil? val) params))))))
 
 (defn- ensure-martservice
   "Ensure that s ends in /martservice (if not, append it)"
@@ -44,12 +31,14 @@
       (first (split #"\?" redir-loc)))))
 
 (defn martservice-url
-  ([server]
-     (-> server ensure-martservice check-redirects))
-  ([server query]
-     (str (ensure-martservice server) "?" (query-str query))))
+  [server]
+  (-> server ensure-martservice check-redirects))
 
-(defn- parse-xml
+(defn query-url
+  [martservice-url params]
+  (str martservice-url "?" (query-str params)))
+
+(defn parse-xml
   "Parse a string of XML and return a tree of the xml/element struct map.
    See clojure.xml/parse for details. BioMart may return an error string in
    the response body: assume this is what's happened if we encounter a parse
@@ -59,67 +48,11 @@
     (xml/parse (org.xml.sax.InputSource. (java.io.StringReader. s)))
     (catch org.xml.sax.SAXParseException _ (throwf "BioMart error: %s" (str s)))))
 
-(defn- parse-tsv
-  [lines]
-  (let [lines (filter #(re-find #"\S" %) lines)]
-    (when-not (re-find #"\t" (first lines))
-      (throwf "BioMart error (failed to parse TSV): %s" (first lines)))
-    (map #(split #"\t" %) lines)))
-
-(defn- seq-to-hash
-  [ks]
-  (fn [vs] (apply hash-map (interleave ks vs))))
-
-(defn- fetch-tsv
-  [martservice params]
-  (let [res-body (->> (http/get (martservice-url martservice params))
-                      (:body)
-                      (split #"\n"))]
-    (if-not (.startsWith (first res-body) "Problem retrieving")
-     (parse-tsv res-body))))
-
-(defn- build-query-xml
-  ([ds args]
-     (letfn [(coll-to-csv [s] (if (coll? s) (apply str (interpose "," (map as-str (seq s)))) (as-str s)))
-             (attr-spec   [a] (vector :Attribute {:name a}))
-             (filter-spec [f] (vector :Filter { :name (as-str (key f)) :value (coll-to-csv (val f))}))]
-       (let [filter (get args :filter {})
-             attrs  (get args :attrs (:default-attrs ds))
-             opts   (assoc (get args :opts {}) :virtualSchemaName (:virtualschema ds))]
-         (with-out-str (prxml [:decl!]
-                              [:doctype! "Query"]
-                              [:Query (into *default-query-opts* opts)
-                               [:Dataset {:name (:dataset ds) :interface "default"}
-                                (map attr-spec attrs)
-                                (map filter-spec filter)]]))))))
-
-(defn- wrap-biomart-errors
-  "Examine the response body and throw an exception if any BioMart errors
-   are identified"
-  [response]
-  (let [body (apply str (:body response))]
-    (if (re-find #"ERROR" body)
-      (let [m (re-find #"(?:Filter|Attribute|Dataset) .+ NOT FOUND" body)]
-        (if m (throwf "BioMart error: %s" m) (throwf "Biomart error: %s" body)))
-      response)))
-
-(defn fetch-meta-xml
-  [martservice params]
-  (let [res-body (apply str (:body (http/get (martservice-url martservice params))))]
-    (zip/xml-zip (parse-xml res-body))))
-
-(defn fetch-datasets
-  [martservice mart]
-  (map #(assoc % :mart mart)
-       (map (seq-to-hash *dataset-fields*) (fetch-tsv martservice
-                                                      {:type "datasets"
-                                                       :mart (:name mart)
-                                                       :virtualschema (:serverVirtualSchema mart)}))))
-(defn fetch-query-results
-  [ds query-spec]
-  (let [query-xml (build-query-xml ds query-spec)
-        res-body (->> (http/post (:url (:martservice ds)) {:body (str "query=" query-xml)})
-                      wrap-biomart-errors
-                      (:body)
-                      (split #"\n"))]
-    (parse-tsv res-body)))
+(defn parse-tsv
+  "Parse a string of tab-separated data, first splitting on newline
+  into rows, then splitting each row on tab."
+  [body]
+  (when (.startsWith body "Problem retrieving")
+    (throwf "Biomart error: %s" body))
+  (let [rows (filter (comp not blank?) (split #"\n" body))]
+    (map #(split #"\t" %) rows)))
