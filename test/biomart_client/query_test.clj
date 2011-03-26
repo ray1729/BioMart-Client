@@ -1,28 +1,26 @@
-(ns biomart-client.core-test
-  (:use [biomart-client.core] :reload-all)
+(ns biomart-client.query-test
+  (:use [biomart-client.utils :only (martservice-url)])
+  (:use [biomart-client.query] :reload-all)
   (:use [clojure.test]))
 
-(deftest ensembl-test
-  (let [ens-url "http://www.ensembl.org/biomart"]
-    (testing "Conecting to Ensembl and retrieving marts"
-      (let [ms (martservice ens-url)]
-        (is (not (nil? ((:marts ms) "ENSEMBL_MART_ENSEMBL"))))
-        (is (not (nil? ((:datasets ms) "hsapiens_gene_ensembl"))))
-        (testing "Basic dataset queries"
-          (let [ds (dataset ms "hsapiens_gene_ensembl")
-                result (query ds :filter {:chromosome_name "6" :hgnc_symbol "HLA-A"}
-                                 :attrs ["ensembl_gene_id" "hgnc_symbol"])]
-            (is (= '(("ENSG00000206503" "HLA-A")) result))))))))
+(deftest ensembl-query-test
+  (testing "Querying Ensembl martservice"
+    (let [ms (martservice-url "http://www.ensembl.org/biomart")]
+      (is ((comp not nil?) (re-find #"/martservice$" ms)))
+      (let [rs (query ms {}  (dataset "hsapiens_gene_ensembl" {:filter {:chromosome_name "6" :hgnc_symbol "HLA-A"}
+                                                               :attrs [:ensembl_gene_id :hgnc_symbol]}))
+            r (first rs)]
+        (is (map? r))
+        (is (:ensembl_gene_id r) "ENSG00000206503")
+        (is (:hgnc_symbol r) "HLA-A")))))
 
-(deftest idcc-test
-  (let [idcc-url "http://www.i-dcc.org/biomart"]
-    (testing "Connecting to I-DCC and retrieving marts"
-      (let [ms (martservice idcc-url)]
-        (is (map? (:marts ms)))
-        (is (not (nil? ((:marts ms) "ikmc"))))
-        (is (not (nil? ((:datasets ms) "dcc"))))
-        (testing "Query dcc mart"
-          (let [ds (dataset ms "dcc")]
-            (is (not (nil? ds)))
-            (let [res (query ds :filter { :marker_symbol "Art4" } :attrs [ "marker_symbol" "mgi_accession_id" ])]
-              (is (= '(("Art4" "MGI:1202710")) res)))))))))
+(deftest idcc-query-test
+  (testing "Querying IDCC martservice"
+    (let [ms (martservice-url  "http://www.i-dcc.org/biomart")]
+      (is ((comp not nil?) (re-find #"/martservice$" ms)))
+      (let [rs (query ms {} (dataset "dcc" {:filter {:marker_symbol "Art4"}
+                                            :attrs [:marker_symbol :mgi_accession_id]}))
+            r  (first rs)]
+        (is (map? r))
+        (is (:marker_symbol r) "Art4")
+        (is (:mgi_accession_id r) "MGI:1202710")))))
