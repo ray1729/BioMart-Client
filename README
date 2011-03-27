@@ -14,12 +14,10 @@ Clojure library to query unRESTful BioMart web services.
 ms
 ;=> "http://www.i-dcc.org/biomart/martservice"
 
-(query ms {} (dataset "dcc" 
-                      :filter {:marker_symbol ["Art4" "Cbx1"]}
-                      :attrs [:marker_symbol :mgi_accession_id]))
+(query ms {} (dataset "dcc" {:marker_symbol ["Art4" "Cbx1"]} [:marker_symbol :mgi_accession_id]))
 ;=> ({:mgi_accession_id "MGI:1202710", :marker_symbol "Art4"} {:mgi_accession_id "MGI:105369", :marker_symbol "Cbx1"})
 
-(query ms {:count 1} (dataset "dcc" :filter {:marker_symbol '(art4 abcd1 cbx1)} :attrs [:mgi_accession_id]))
+(query ms {:count true} (dataset "dcc" {:marker_symbol '(art4 abcd1 cbx1)} [:mgi_accession_id]))
 ;=> 3
 
 (use '[biomart-client.metadata])
@@ -69,5 +67,3 @@ RECIPIENT’S ACCEPTANCE OF THIS AGREEMENT.
 ## TODO
 
 Write more tests
-
-
