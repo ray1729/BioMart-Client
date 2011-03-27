@@ -13,13 +13,15 @@
                            :virtualSchemaName    "default"})
 
 (defn dataset
-  [name & {:keys [filter attrs interface] :or {interface "default"}}]
-  (letfn [(coll-to-csv [s] (if (coll? s) (join "," (map as-str (seq s))) (as-str s)))
-          (attr-spec   [a] (vector :Attribute {:name (as-str a)}))
-          (filter-spec [f] (vector :Filter {:name (as-str (key f)) :value (coll-to-csv (val f))}))]
-    (vec (remove nil? (vector :Dataset {:name name :interface interface}
-                              (when attrs (map attr-spec attrs))
-                              (when filter (map filter-spec filter)))))))
+  ([name filter attrs]
+     (dataset name filter attrs "default"))
+  ([name filter attrs interface]
+     (letfn [(coll-to-csv [s] (if (coll? s) (join "," (map as-str (seq s))) (as-str s)))
+             (attr-spec   [a] (vector :Attribute {:name (as-str a)}))
+             (filter-spec [f] (vector :Filter {:name (as-str (key f)) :value (coll-to-csv (val f))}))]
+       (vec (remove nil? (vector :Dataset {:name name :interface interface}
+                                 (when attrs (map attr-spec attrs))
+                                 (when filter (map filter-spec filter))))))))
 
 (defn- build-query-xml
   [opts datasets]
