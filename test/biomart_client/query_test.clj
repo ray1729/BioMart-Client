@@ -26,7 +26,7 @@
         (is (map? r))
         (is (:marker_symbol r) "Art4")
         (is (:mgi_accession_id r) "MGI:1202710"))
-      (let [rs (query ms {:count 1} (dataset "dcc"
-                                             {:marker_symbol '(art4 abcd1 cbx1)}
-                                             [:mgi_accession_id]))]
+      (let [rs (query ms {:count true} (dataset "dcc"
+                                                {:marker_symbol '(art4 abcd1 cbx1)}
+                                                [:mgi_accession_id]))]
         (is (= rs 3))))))

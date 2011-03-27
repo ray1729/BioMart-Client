@@ -6,9 +6,9 @@
   (:require [clj-http.client :as http]))
 
 (def *default-query-opts* {:formatter            "TSV"
-                           :header               "1"
-                           :uniqueRows           "1"
-                           :count                "0"
+                           :header               true
+                           :uniqueRows           true
+                           :count                false
                            :datasetConfigVersion "0.6"
                            :virtualSchemaName    "default"})
 
@@ -23,9 +23,17 @@
                                  (when attrs (map attr-spec attrs))
                                  (when filter (map filter-spec filter))))))))
 
+(defn boolean->str
+  [b]
+  (cond
+   (identical? b true) "1"
+   (identical? b false) "0"
+   :else b))
+
 (defn- build-query-xml
   [opts datasets]
-  (with-out-str (prxml [:decl!] [:doctype! "Query"] [:Query opts datasets])))
+  (let [opts (zipmap (keys opts) (map boolean->str (vals opts)))]
+    (with-out-str (prxml [:decl!] [:doctype! "Query"] [:Query opts datasets]))))
 
 (defn- wrap-biomart-errors
   "Examine the response body and throw an exception if any BioMart errors
@@ -58,6 +66,6 @@
   (let [opts      (merge *default-query-opts* opts)
         query-xml (build-query-xml opts datasets)
         res-body  (fetch-query-results martservice-url query-xml)]
-    (if (not= "0" (opts :count))
+    (if (opts :count)
       (parse-count res-body)
       (parse-query-results res-body))))
