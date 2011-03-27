@@ -1,5 +1,5 @@
 (ns biomart-client.query  
-  (:use [biomart-client.utils :only (parse-tsv parse-count)]
+  (:use [biomart-client.utils   :only (parse-tsv parse-count)]
         [clojure.contrib.string :only (as-str join split blank? lower-case replace-re trim)]
         [clojure.contrib.except :only (throwf)]
         [clojure.contrib.prxml  :only (prxml)])
@@ -23,16 +23,13 @@
                                  (when attrs (map attr-spec attrs))
                                  (when filter (map filter-spec filter))))))))
 
-(defn boolean->str
-  [b]
-  (cond
-   (identical? b true) "1"
-   (identical? b false) "0"
-   :else b))
-
 (defn- build-query-xml
   [opts datasets]
-  (let [opts (zipmap (keys opts) (map boolean->str (vals opts)))]
+  (let [boolean->str (fn [b] (cond
+                             (identical? b true) "1"
+                             (identical? b false) "0"
+                             :else b))
+        opts (zipmap (keys opts) (map boolean->str (vals opts)))]
     (with-out-str (prxml [:decl!] [:doctype! "Query"] [:Query opts datasets]))))
 
 (defn- wrap-biomart-errors
@@ -49,13 +46,10 @@
   [martservice-url query-xml]
   (:body (wrap-biomart-errors (http/post martservice-url {:body (str "query=" query-xml)}))))
 
-(defn- col-name->keyword
-  [h]
-  (->> h trim (replace-re #"\s+" "_") lower-case keyword))
-
 (defn- parse-query-results
   [res-body]
-  (let [rows (parse-tsv res-body)
+  (let [col-name->keyword (fn [c] (->> c trim (replace-re #"\s+" "_") lower-case keyword))
+        rows (parse-tsv res-body)
         cols (map col-name->keyword (first rows))]
     (map #(zipmap cols %) (rest rows))))
 
