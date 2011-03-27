@@ -30,3 +30,17 @@
                                                 {:marker_symbol '(art4 abcd1 cbx1)}
                                                 [:mgi_accession_id]))]
         (is (= rs 3))))))
+
+(deftest federated-query-test
+  (testing "Federated query via IDCC martservice"
+    (let [ms       "http://www.i-dcc.org/biomart/martservice"
+          targ_rep (dataset "idcc_targ_rep" {}
+                            ["ikmc_project_id" "mgi_accession_id" "targeting_vector" "escell_clone" "pipeline"])
+          kermits  (dataset "kermits" {:status [ "Genotype Confirmed" "Germline transmission achieved"]}
+                            ["status" "emma" "mi_centre" "mi_date"])
+          results  (query ms {} targ_rep kermits)]
+      (is (seq? results))
+      (is (map? (first results)))
+      (is (:pipeline (first results)))
+      (is (:ikmc_project_id (first results)))
+      (is (:microinjection_centre (first results))))))
