@@ -1,5 +1,5 @@
 (ns biomart-client.query  
-  (:use [biomart-client.utils   :only (parse-tsv parse-count)]
+  (:use [biomart-client.utils   :only (parse-tsv)]
         [clojure.contrib.string :only (as-str join split blank? lower-case replace-re trim)]
         [clojure.contrib.except :only (throwf)]
         [clojure.contrib.prxml  :only (prxml)])
@@ -13,6 +13,7 @@
                            :virtualSchemaName    "default"})
 
 (defn dataset
+  "Specify the dataset, filter and attributes for the query."
   ([name filter attrs]
      (dataset name filter attrs "default"))
   ([name filter attrs interface]
@@ -24,6 +25,7 @@
                                  (when filter (map filter-spec filter))))))))
 
 (defn- build-query-xml
+  "Build XML required to perform martservice query."
   [opts datasets]
   (let [boolean->str (fn [b] (cond
                              (identical? b true) "1"
@@ -43,17 +45,35 @@
       response)))
 
 (defn- fetch-query-results
+  "POST query to martservice-url and check for BioMart errors,
+  throwing an exception if any occur."
   [martservice-url query-xml]
   (:body (wrap-biomart-errors (http/post martservice-url {:body (str "query=" query-xml)}))))
 
 (defn- parse-query-results
+  "Parse a string containing query results in TSV format. Returns a
+  seq of maps keyed on column headers parsed from the first line of
+  the response body."
   [res-body]
   (let [col-name->keyword (fn [c] (->> c trim (replace-re #"\s+" "_") lower-case keyword))
         rows (parse-tsv res-body)
         cols (map col-name->keyword (first rows))]
     (map #(zipmap cols %) (rest rows))))
 
+(defn- parse-count
+  "Parse a string containing count result returned by
+  martservice. This should be one or more digits followed by a
+  newline. Throw an error if body is not in expected format"
+  [body]
+  (if-let [r (re-seq #"^\d+$" body)]
+    (Integer/parseInt (first r))
+    (throwf "Biomart error: cannot parse count '%s'" body)))
+
 (defn query
+  "Query the specified datasets and return parsed results. For a
+  normal query, a seq of maps keyed on column name is returned. When a
+  count is requested (by passing opts {:count true}) the response will
+  simply be an integer."
   [martservice-url opts & datasets]
   (when-not (or (= 1 (count datasets)) (= 2 (count datasets)))
     (throwf "query requires 1 or 2 datasets"))
