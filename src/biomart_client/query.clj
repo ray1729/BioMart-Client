@@ -53,8 +53,7 @@
 
 (defn- parse-query-results
   "Parse a string containing query results in TSV format. Returns a
-  seq of maps keyed on column headers parsed from the first line of
-  the response body."
+  seq of maps keyed on attrs."
   [res-body attrs]
   (letfn [(coerce-val
            [v]
