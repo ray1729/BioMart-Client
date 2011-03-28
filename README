@@ -70,4 +70,8 @@ RECIPIENT’S ACCEPTANCE OF THIS AGREEMENT.
 
 ## TODO
 
-Write more tests
+* Write more tests
+
+* Deal with duplicate attrs in query parser? At the moment, for
+  federated queries, an attribute in the second dataset will trample
+  on data from the first dataset with the same attribute name.
