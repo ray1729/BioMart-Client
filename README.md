@@ -22,7 +22,7 @@ Clojure library to query unRESTful BioMart web services.
     (query ms {:count true} {:dataset "dcc"
                              :filter  {:marker_symbol '(art4 abcd1 cbx1)}
                              :attrs   [:mgi_accession_id]}))
-    ;=> 3
+    ;=> ({:count 3})
 
 ### BioMart metadata
 
@@ -76,3 +76,6 @@ RECIPIENT’S ACCEPTANCE OF THIS AGREEMENT.
 * Deal with duplicate attrs in query parser? At the moment, for
   federated queries, an attribute in the second dataset will trample
   on data from the first dataset with the same attribute name.
+
+* Implement work-around for boolean filters from Darren's Ruby library
+  - see his dataset.rb class.  
